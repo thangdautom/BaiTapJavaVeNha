@@ -1,0 +1,110 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import org.w3c.dom.*;
+import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+
+public class XMLCrudApp {
+    private JFrame frame;
+    private JTable table;
+    private DefaultTableModel tableModel;
+    private JTextField nameField, valueField;
+    private File xmlFile = new File("data.xml");
+
+    public XMLCrudApp() {
+        frame = new JFrame("CRUD ");
+        frame.setSize(800, 600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLayout(new BorderLayout());
+
+        tableModel = new DefaultTableModel(new String[]{"Name", "Value"}, 0);
+        table = new JTable(tableModel);
+        frame.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        JPanel formPanel = new JPanel(new GridLayout(1, 4));
+        nameField = new JTextField();
+        valueField = new JTextField();
+        JButton addButton = new JButton("Add");
+        JButton deleteButton = new JButton("Delete");
+
+        formPanel.add(new JLabel("Name:"));
+        formPanel.add(nameField);
+        formPanel.add(new JLabel("Value:"));
+        formPanel.add(valueField);
+        formPanel.add(addButton);
+        formPanel.add(deleteButton);
+        frame.add(formPanel, BorderLayout.SOUTH);
+
+        addButton.addActionListener(e -> addElement());
+        deleteButton.addActionListener(e -> deleteElement());
+
+        loadXML();
+
+        frame.setVisible(true);
+    }
+
+    private void addElement() {
+        String name = nameField.getText().trim();
+        String value = valueField.getText().trim();
+        if (!name.isEmpty() && !value.isEmpty()) {
+            tableModel.addRow(new Object[]{name, value});
+            saveXML();
+        }
+    }
+
+    private void deleteElement() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow != -1) {
+            tableModel.removeRow(selectedRow);
+            saveXML();
+        }
+    }
+
+    private void loadXML() {
+        if (!xmlFile.exists()) return;
+        try {
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.parse(xmlFile);
+            NodeList nodeList = doc.getElementsByTagName("item");
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Element element = (Element) nodeList.item(i);
+                String name = element.getAttribute("name");
+                String value = element.getTextContent();
+                tableModel.addRow(new Object[]{name, value});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveXML() {
+        try {
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.newDocument();
+            Element root = doc.createElement("items");
+            doc.appendChild(root);
+
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                Element item = doc.createElement("item");
+                item.setAttribute("name", tableModel.getValueAt(i, 0).toString());
+                item.setTextContent(tableModel.getValueAt(i, 1).toString());
+                root.appendChild(item);
+            }
+
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(XMLCrudApp::new);
+    }
+}
